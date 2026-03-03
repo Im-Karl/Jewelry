@@ -1,0 +1,13 @@
+package com.example.jewelry.payment.dto;
+
+import lombok.Data;
+import java.math.BigDecimal;
+import java.util.UUID;
+
+@Data
+public class PaymentRequest {
+    private UUID orderId;
+    private BigDecimal amount;
+    private String bankCode; // VD: NCB, VCB (Dùng cho VNPAY)
+    private String language; // vn, en
+}
