@@ -2,11 +2,15 @@ package com.example.jewelry.product.web;
 
 import com.example.jewelry.product.dto.CreateProductRequest;
 import com.example.jewelry.product.dto.ProductDto;
+import com.example.jewelry.product.dto.UpdateProductRequest;
 import com.example.jewelry.shared.response.MessageResponse;
+import com.example.jewelry.shared.response.PageResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 @RestController
@@ -43,5 +47,38 @@ public class ProductController {
         return ResponseEntity.ok(
                 new MessageResponse("Xóa sản phẩm thành công")
         );
+    }
+
+    @GetMapping("/filter")
+    public ResponseEntity<PageResponse<ProductDto>> getProductsWithFilter(
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) Long categoryId,
+            @RequestParam(required = false) BigDecimal minPrice,
+            @RequestParam(required = false) BigDecimal maxPrice,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "createdAt") String sortBy,
+            @RequestParam(defaultValue = "desc") String sortDir
+    ) {
+        return ResponseEntity.ok(productService.getProductsWithFilter(
+                search, categoryId, minPrice, maxPrice, page, size, sortBy, sortDir));
+    }
+
+
+    @PutMapping(value = "/{id}", consumes = {"multipart/form-data"})
+     @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ProductDto> updateProduct(
+            @PathVariable String id,
+            @ModelAttribute UpdateProductRequest request) {
+        return ResponseEntity.ok(productService.updateProduct(id, request));
+    }
+
+    @PatchMapping("/{id}/status")
+    public ResponseEntity<String> toggleStatus(
+            @PathVariable String id,
+            @RequestParam boolean isDeleted) {
+        productService.toggleProductStatus(id, isDeleted);
+        String msg = isDeleted ? "Đã ẩn sản phẩm" : "Đã khôi phục sản phẩm";
+        return ResponseEntity.ok(msg);
     }
 }
