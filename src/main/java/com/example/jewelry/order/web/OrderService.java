@@ -14,4 +14,5 @@ public interface OrderService {
     void updateOrderStatus(UUID orderId, com.example.jewelry.shared.enums.OrderStatus status);
 
     void deleteMyOrder(UUID userId, UUID orderId);
+    void cancelOrder(UUID userId, UUID orderId);
 }

@@ -40,9 +40,8 @@ public class Order {
     private String recipientPhone;
     private String recipientName;
 
-    // --- Gifting Mode (Tính năng Killer) ---
     private boolean gift;
-    private String giftMessage; // Lời chúc
+    private String giftMessage;
 
     // Audit
     private LocalDateTime createdAt = LocalDateTime.now();

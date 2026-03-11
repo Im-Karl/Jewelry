@@ -6,6 +6,13 @@ import com.example.jewelry.gamification.dto.AvailableCouponResponse;
 import com.example.jewelry.gamification.dto.CreatePublicCouponRequest;
 import com.example.jewelry.gamification.dto.PublicCouponResponse;
 import com.example.jewelry.gamification.web.PublicCouponService;
+import com.example.jewelry.order.domain.Order;
+import com.example.jewelry.order.domain.OrderItem;
+import com.example.jewelry.order.domain.OrderRepository;
+import com.example.jewelry.product.domain.ProductRepository;
+import com.example.jewelry.product.domain.ProductVariant;
+import com.example.jewelry.product.domain.ProductVariantRepository;
+import com.example.jewelry.shared.enums.OrderStatus;
 import com.example.jewelry.shared.exception.DomainException;
 import com.example.jewelry.shared.exception.DomainExceptionCode;
 import lombok.RequiredArgsConstructor;
@@ -15,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -24,6 +32,8 @@ public class PublicCouponServiceImpl implements PublicCouponService {
     private final PublicCouponRepository publicCouponRepository;
     private final UserCouponRepository userCouponRepository; // Inject thêm cái này
     private final UserRepository userRepository;
+    private final OrderRepository orderRepository;
+    private final ProductVariantRepository variantRepository;
 
     @Override
     @Transactional
@@ -108,6 +118,7 @@ public class PublicCouponServiceImpl implements PublicCouponService {
 
         return result;
     }
+
 
     private PublicCouponResponse toResponse(PublicCoupon coupon) {
         return PublicCouponResponse.builder()

@@ -53,4 +53,13 @@ public class OrderController {
                 new MessageResponse("Xóa đơn hàng thành công")
         );
     }
+
+    @PostMapping("/{orderId}/cancel")
+    public ResponseEntity<String> cancelOrder(@PathVariable UUID orderId) {
+        UUID userId = SecurityUtil.getCurrentUserId()
+                .orElseThrow(() -> new RuntimeException("Unauthorized"));
+
+        orderService.cancelOrder(userId, orderId);
+        return ResponseEntity.ok("Hủy đơn hàng thành công, hệ thống đã hoàn trả điểm và mã giảm giá.");
+    }
 }

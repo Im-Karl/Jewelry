@@ -280,6 +280,60 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Override
+    @Transactional
+    public void cancelOrder(UUID userId, UUID orderId) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new DomainException(DomainExceptionCode.ORDER_NOT_FOUND));
+
+        if(!order.getUser().getId().equals(userId)) {
+            throw new RuntimeException("Bạn không có quyền huỷ đơn hàng này!");
+        }
+
+        if(order.getStatus() != OrderStatus.PENDING) {
+            throw new RuntimeException("Chỉ có thể huỷ đơn hàng ở trạng thái Pending");
+        }
+
+        order.setStatus(OrderStatus.CANCELLED);
+
+        for(OrderItem item : order.getItems()) {
+            if (item.getVariantId() != null) {
+                ProductVariant variant = variantRepository.findById(item.getVariantId()).orElse(null);
+                if(variant != null) {
+                    variant.setStockQuantity(variant.getStockQuantity() + item.getQuantity());
+                    variantRepository.save(variant);
+                }
+            }
+        }
+        if(order.getPointsUsed() > 0) {
+            User user = order.getUser();
+            user.setLoyaltyPoints(user.getLoyaltyPoints() + order.getPointsUsed());
+            userRepository.save(user);
+        }
+
+        if(order.getCouponCode() != null && !order.getCouponCode().isEmpty()) {
+            String code = order.getCouponCode();
+
+            Optional<UserCoupon> userCouponOpt = userCouponRepository.findByGeneratedCode(code);
+            if(userCouponOpt.isPresent()) {
+                UserCoupon userCoupon = userCouponOpt.get();
+                userCoupon.setUsed(false);
+                userCouponRepository.save(userCoupon);
+            }else{
+                Optional<PublicCoupon> publicCouponOpt = publicCouponRepository.findByCode(code.toUpperCase());
+                if(publicCouponOpt.isPresent()) {
+                    PublicCoupon publicCoupon = publicCouponOpt.get();
+                    if(publicCoupon.getUsedCount() > 0){
+                        publicCoupon.setUsedCount(publicCoupon.getUsedCount() - 1);
+                        publicCouponRepository.save(publicCoupon);
+                    }
+                }
+            }
+
+            orderRepository.save(order);
+        }
+    }
+
+    @Override
     public void updateOrderStatus(UUID orderId, OrderStatus status) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new DomainException(DomainExceptionCode.ORDER_NOT_FOUND));

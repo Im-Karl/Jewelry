@@ -19,4 +19,6 @@ public interface PublicCouponRepository
             "AND (c.startAt IS NULL OR c.startAt <= CURRENT_TIMESTAMP) " +
             "AND (c.maxUsage = -1 OR c.usedCount < c.maxUsage)")
     List<PublicCoupon> findAvailablePublicCoupons();
+
+    Optional<PublicCoupon> findByCode(String code);
 }
