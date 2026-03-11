@@ -13,6 +13,9 @@ import com.example.jewelry.order.dto.OrderResponse;
 import com.example.jewelry.order.web.OrderService;
 import com.example.jewelry.product.domain.Product;
 import com.example.jewelry.product.domain.ProductRepository;
+import com.example.jewelry.product.domain.ProductVariant;
+import com.example.jewelry.product.domain.ProductVariantRepository;
+import com.example.jewelry.product.web.ProductService;
 import com.example.jewelry.shared.enums.OrderStatus;
 import com.example.jewelry.shared.exception.DomainException;
 import com.example.jewelry.shared.exception.DomainExceptionCode;
@@ -41,6 +44,7 @@ public class OrderServiceImpl implements OrderService {
     private final UserCouponRepository userCouponRepository;
     private final PublicCouponRepository publicCouponRepository;
     private final UserRepository userRepository;
+    private final ProductVariantRepository variantRepository;
 
     @Override
     @Transactional
@@ -84,27 +88,31 @@ public class OrderServiceImpl implements OrderService {
 
         BigDecimal totalAmount = BigDecimal.ZERO;
 
-        // 4. Duyệt qua danh sách ĐÃ LỌC (selectedItems)
         for (CartItem cartItem : selectedItems) {
             Product product = cartItem.getProduct();
+            ProductVariant variant = cartItem.getVariant();
             int quantity = cartItem.getQuantity();
 
             // A. Trừ tồn kho (Atomic Update)
-            int rowsUpdated = productRepository.deductStock(product.getId(), quantity);
+            int rowsUpdated = variantRepository.deductStock(variant.getId(), quantity);
             if (rowsUpdated == 0) {
                 throw new DomainException(DomainExceptionCode.OUT_OF_STOCK); // Nhớ thêm enum này
             }
 
             // B. Tính tiền
-            BigDecimal itemTotal = product.getBasePrice().multiply(BigDecimal.valueOf(quantity));
+            BigDecimal unitPrice = product.getBasePrice().add(variant.getAdditionalPrice());
+            BigDecimal itemTotal = unitPrice.multiply(BigDecimal.valueOf(quantity));
             totalAmount = totalAmount.add(itemTotal);
 
             // C. Tạo OrderItem
             OrderItem orderItem = OrderItem.builder()
                     .order(order)
                     .product(product)
+                    .variantId(variant.getId())
+                    .size(variant.getSize())
+                    .color(variant.getColor())
                     .quantity(quantity)
-                    .priceAtPurchase(product.getBasePrice())
+                    .priceAtPurchase(unitPrice)
                     .build();
 
             order.getItems().add(orderItem);
@@ -255,6 +263,9 @@ public class OrderServiceImpl implements OrderService {
             itemDto.setId(item.getId());
             itemDto.setQuantity(item.getQuantity());
             itemDto.setPriceAtPurchase(item.getPriceAtPurchase());
+            itemDto.setVariantId(item.getVariantId());
+            itemDto.setSize(item.getSize());
+            itemDto.setColor(item.getColor());
 
             if (item.getProduct() != null) {
                 itemDto.setProductId(item.getProduct().getId());

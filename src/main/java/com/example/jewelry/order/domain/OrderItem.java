@@ -30,4 +30,12 @@ public class OrderItem {
 
     // Lưu giá tại thời điểm mua (đề phòng sau này giá sản phẩm thay đổi)
     private BigDecimal priceAtPurchase;
+
+    private UUID variantId;
+
+    @Column(name = "variant_size")
+    private String size;
+
+    @Column(name = "variant_color")
+    private String color;
 }

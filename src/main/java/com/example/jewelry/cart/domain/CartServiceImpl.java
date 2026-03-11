@@ -8,6 +8,8 @@ import com.example.jewelry.cart.dto.CartResponse;     // Import
 import com.example.jewelry.cart.web.CartService;
 import com.example.jewelry.product.domain.Product;
 import com.example.jewelry.product.domain.ProductRepository;
+import com.example.jewelry.product.domain.ProductVariant;
+import com.example.jewelry.product.domain.ProductVariantRepository;
 import com.example.jewelry.shared.exception.DomainException;
 import com.example.jewelry.shared.exception.DomainExceptionCode;
 import lombok.RequiredArgsConstructor;
@@ -28,48 +30,69 @@ public class CartServiceImpl implements CartService {
     private final CartRepository cartRepository;
     private final ProductRepository productRepository;
     private final UserRepository userRepository;
+    private final ProductVariantRepository variantRepository;
 
     @Override
     public CartResponse getMyCart(UUID userId) {
         Cart cart = cartRepository.findByUserId(userId)
                 .orElseGet(() -> createNewCart(userId));
-        return mapToCartResponse(cart); // <--- Map sang DTO
+        return mapToCartResponse(cart);
     }
 
     @Override
     @Transactional
     public CartResponse addToCart(UUID userId, AddToCartRequest request) {
+        ProductVariant variant = variantRepository.findById(request.getVariantId())
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy biến thể"));
+
+        if(!variant.getProduct().getId().equals(request.getProductId())) {
+            throw new RuntimeException("Biến thể không hợp lệ");
+        }
+
+
+
         Cart cart = cartRepository.findByUserId(userId)
                 .orElseGet(() -> createNewCart(userId));
 
         Product product = productRepository.findById(request.getProductId())
                 .orElseThrow(() -> new DomainException(DomainExceptionCode.PRODUCT_NOT_FOUND));
 
-        Optional<CartItem> existingItem = cart.getItems().stream()
-                .filter(item -> item.getProduct().getId().equals(product.getId()))
-                .findFirst();
 
-        if (existingItem.isPresent()) {
-            CartItem item = existingItem.get();
-            item.setQuantity(item.getQuantity() + request.getQuantity());
+        Optional<CartItem> existingItemOpt = cart.getItems().stream()
+                .filter(item -> item.getProduct().getId().equals(product.getId()) && item.getVariant().getId().equals(variant.getId())).findFirst();
+
+
+        if (existingItemOpt.isPresent()) {
+            CartItem existingItem = existingItemOpt.get();
+            int newQuantity = existingItem.getQuantity() + request.getQuantity();
+
+            // Check kho của Variant
+            if (newQuantity > variant.getStockQuantity()) {
+                throw new RuntimeException("Vượt quá số lượng tồn kho của phân loại này!");
+            }
+            existingItem.setQuantity(newQuantity);
         } else {
+            if (request.getQuantity() > variant.getStockQuantity()) {
+                throw new RuntimeException("Vượt quá số lượng tồn kho!");
+            }
             CartItem newItem = CartItem.builder()
                     .cart(cart)
                     .product(product)
+                    .variant(variant)
                     .quantity(request.getQuantity())
                     .build();
             cart.getItems().add(newItem);
         }
 
         Cart savedCart = cartRepository.save(cart);
-        return mapToCartResponse(savedCart); // <--- Map sang DTO
+        return mapToCartResponse(savedCart);
     }
 
     @Override
     @Transactional
     public CartResponse removeFromCart(UUID userId, UUID cartItemId) {
         Cart cart = cartRepository.findByUserId(userId)
-                .orElseThrow(() -> new DomainException(DomainExceptionCode.CART_EMPTY)); // Hoặc lỗi khác tùy bạn
+                .orElseThrow(() -> new DomainException(DomainExceptionCode.CART_EMPTY));
 
         cart.getItems().removeIf(item -> item.getId().equals(cartItemId));
 
@@ -117,32 +140,58 @@ public class CartServiceImpl implements CartService {
         return cartRepository.save(newCart);
     }
 
-    // HÀM QUAN TRỌNG NHẤT: CHUYỂN ENTITY SANG DTO
-    private CartResponse mapToCartResponse(Cart cart) {
-        BigDecimal totalAmount = BigDecimal.ZERO;
-        List<CartItemResponse> itemResponses = new ArrayList<>();
+    private CartItemResponse mapCartItemToDto(CartItem item) {
+        CartItemResponse dto = new CartItemResponse();
+        dto.setId(item.getId());
+        dto.setQuantity(item.getQuantity());
 
-        for (CartItem item : cart.getItems()) {
-            BigDecimal price = item.getProduct().getBasePrice();
-            BigDecimal subTotal = price.multiply(BigDecimal.valueOf(item.getQuantity()));
-
-            totalAmount = totalAmount.add(subTotal);
-
-            itemResponses.add(CartItemResponse.builder()
-                    .id(item.getId())
-                    .productId(item.getProduct().getId())
-                    .productName(item.getProduct().getName())
-                    .productImage(item.getProduct().getMainImageUrl())
-                    .price(price)
-                    .quantity(item.getQuantity())
-                    .subTotal(subTotal)
-                    .build());
+        // Thông tin Product gốc
+        if (item.getProduct() != null) {
+            dto.setProductId(item.getProduct().getId());
+            dto.setProductName(item.getProduct().getName());
+            dto.setProductImage(item.getProduct().getMainImageUrl());
         }
 
-        return CartResponse.builder()
-                .id(cart.getId())
-                .items(itemResponses)
-                .totalAmount(totalAmount)
-                .build();
+        // --- BỔ SUNG LOGIC LẤY THÔNG TIN VARIANT VÀ TÍNH LẠI GIÁ ---
+        BigDecimal unitPrice = item.getProduct().getBasePrice();
+
+        if (item.getVariant() != null) {
+            dto.setVariantId(item.getVariant().getId());
+            dto.setSize(item.getVariant().getSize());
+            dto.setColor(item.getVariant().getColor());
+
+            // Giá thực tế = Giá gốc + Giá cộng thêm của Variant
+            BigDecimal additionalPrice = item.getVariant().getAdditionalPrice() != null
+                    ? item.getVariant().getAdditionalPrice()
+                    : BigDecimal.ZERO;
+            unitPrice = unitPrice.add(additionalPrice);
+        }
+
+        dto.setPrice(unitPrice); // Giá của 1 cái
+        dto.setSubTotal(unitPrice.multiply(BigDecimal.valueOf(item.getQuantity()))); // Tổng giá của dòng này
+
+        return dto;
+    }
+
+    // Hàm chuyển đổi cả cái Giỏ hàng (Cart) -> CartResponse
+    private CartResponse mapToCartResponse(Cart cart) {
+        CartResponse response = new CartResponse();
+        response.setId(cart.getId());
+
+        List<CartItemResponse> itemResponses = cart.getItems().stream()
+                .map(this::mapCartItemToDto) // Gọi hàm map ở trên
+                .collect(Collectors.toList());
+
+        response.setItems(itemResponses);
+
+        // --- TÍNH LẠI TỔNG TIỀN CẢ GIỎ HÀNG ---
+        // Phải cộng tổng của các subTotal lại (vì mỗi subTotal đã chứa giá Variant rồi)
+        BigDecimal totalAmount = itemResponses.stream()
+                .map(CartItemResponse::getSubTotal)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        response.setTotalAmount(totalAmount);
+
+        return response;
     }
 }

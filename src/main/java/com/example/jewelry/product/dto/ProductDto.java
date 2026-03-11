@@ -2,6 +2,7 @@ package com.example.jewelry.product.dto;
 
 import lombok.Data;
 import java.math.BigDecimal;
+import java.util.List;
 
 @Data
 public class ProductDto {
@@ -13,5 +14,16 @@ public class ProductDto {
     private String stoneType;
     private String fengShuiElement;
     private boolean isArEnabled;
-    private String categoryName; // Chỉ cần tên để hiển thị
+    private String categoryName;
+
+    private List<ProductVariantDto> variants;
+
+    public int getTotalStock() {
+        if (variants == null || variants.isEmpty()) {
+            return 0;
+        }
+        return variants.stream()
+                .mapToInt(ProductVariantDto::getStockQuantity)
+                .sum();
+    }
 }

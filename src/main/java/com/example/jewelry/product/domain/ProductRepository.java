@@ -21,10 +21,10 @@ public interface ProductRepository extends JpaRepository<Product, String> {
     @Query("SELECT p FROM Product p WHERE p.fengShuiElement = :element")
     List<Product> findByFengShuiElement(String element);
 
-    @Modifying // Báo cho Spring biết đây là câu lệnh thay đổi dữ liệu (Update/Delete)
-    @Query("UPDATE Product p SET p.stockQuantity = p.stockQuantity - :quantity " +
-            "WHERE p.id = :productId AND p.stockQuantity >= :quantity")
-    int deductStock(String productId, int quantity);
+//    @Modifying // Báo cho Spring biết đây là câu lệnh thay đổi dữ liệu (Update/Delete)
+//    @Query("UPDATE Product p SET p.stockQuantity = p.stockQuantity - :quantity " +
+//            "WHERE p.id = :productId AND p.stockQuantity >= :quantity")
+//    int deductStock(String productId, int quantity);
 
     @Query("SELECT p FROM Product p WHERE p.isDeleted = false " +
             "AND LOWER(p.name) LIKE LOWER(CONCAT('%', :search, '%')) " +

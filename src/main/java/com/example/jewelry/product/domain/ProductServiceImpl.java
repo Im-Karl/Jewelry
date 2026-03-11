@@ -1,7 +1,6 @@
 package com.example.jewelry.product.domain;
 
-import com.example.jewelry.product.dto.ProductDto;
-import com.example.jewelry.product.dto.UpdateProductRequest;
+import com.example.jewelry.product.dto.*;
 import com.example.jewelry.product.web.ProductService;
 import com.example.jewelry.shared.exception.DomainException;
 import com.example.jewelry.shared.exception.DomainExceptionCode;
@@ -13,12 +12,14 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
-import com.example.jewelry.product.dto.CreateProductRequest;
 import com.example.jewelry.shared.storage.FileStorageService;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Objects;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 
@@ -29,6 +30,7 @@ public class ProductServiceImpl implements ProductService {
     private final CategoryRepository categoryRepository;
     private final ModelMapper modelMapper;
     private final FileStorageService fileStorageService;
+    private final ProductVariantRepository variantRepository;
 
     @Override
     public List<ProductDto> getAllProducts() {
@@ -71,7 +73,6 @@ public class ProductServiceImpl implements ProductService {
                 .basePrice(request.getBasePrice())
                 .materialType(request.getMaterialType())
                 .stoneType(request.getStoneType())
-                .stockQuantity(request.getStockQuantity())
                 .platingColor(request.getPlatingColor())
                 .fengShuiElement(request.getFengShuiElement())
                 .mainImageUrl(imageUrl)
@@ -154,5 +155,64 @@ public class ProductServiceImpl implements ProductService {
 
         product.setDeleted(isDeleted);
         productRepository.save(product);
+    }
+
+    @Override
+    @Transactional
+    public ProductVariantDto addVariant(String productId, CreateVariantRequest request) {
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new DomainException(DomainExceptionCode.PRODUCT_NOT_FOUND));
+
+        boolean isExist = product.getVariants().stream()
+                .anyMatch(v -> Objects.equals(v.getSize(), request.getSize()) &&
+                        Objects.equals(v.getColor(), request.getColor()));
+
+        if (isExist) {
+            throw new RuntimeException("Biến thể với Size và Màu này đã tồn tại trong sản phẩm!");
+        }
+
+        ProductVariant variant = ProductVariant.builder()
+                .product(product)
+                .size(request.getSize())
+                .color(request.getColor())
+                .additionalPrice(request.getAdditionalPrice() != null ? request.getAdditionalPrice() : BigDecimal.ZERO)
+                .stockQuantity(request.getStockQuantity())
+                .build();
+
+        ProductVariant saveVariant = variantRepository.save(variant);
+        return modelMapper.map(saveVariant, ProductVariantDto.class);
+    }
+
+    @Override
+    @Transactional
+    public ProductVariantDto updateVariant(String productId, UUID variantId, UpdateVariantRequest request){
+        ProductVariant variant = variantRepository.findById(variantId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy biến thể"));
+
+        if(!variant.getProduct().getId().equals(productId)) {
+            throw new DomainException(DomainExceptionCode.PRODUCT_NOT_FOUND);
+        }
+
+        if (request.getAdditionalPrice() != null) {
+            variant.setAdditionalPrice(request.getAdditionalPrice());
+        }
+
+        if (request.getStockQuantity() != null) {
+            variant.setStockQuantity(request.getStockQuantity());
+        }
+
+        ProductVariant updatedVariant = variantRepository.save(variant);
+        return modelMapper.map(updatedVariant, ProductVariantDto.class);
+    }
+
+    @Override
+    @Transactional
+    public void deleteVariant(String productId, UUID variantId) {
+        ProductVariant variant = variantRepository.findById(variantId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy biến thể"));
+
+        if(!variant.getProduct().getId().equals(productId)) {throw new RuntimeException("Biến thể không thuộc sản phẩm này");}
+
+        variantRepository.delete(variant);
     }
 }

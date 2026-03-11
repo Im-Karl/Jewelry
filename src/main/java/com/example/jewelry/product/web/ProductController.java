@@ -1,10 +1,9 @@
 package com.example.jewelry.product.web;
 
-import com.example.jewelry.product.dto.CreateProductRequest;
-import com.example.jewelry.product.dto.ProductDto;
-import com.example.jewelry.product.dto.UpdateProductRequest;
+import com.example.jewelry.product.dto.*;
 import com.example.jewelry.shared.response.MessageResponse;
 import com.example.jewelry.shared.response.PageResponse;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -12,6 +11,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/products")
@@ -80,5 +80,28 @@ public class ProductController {
         productService.toggleProductStatus(id, isDeleted);
         String msg = isDeleted ? "Đã ẩn sản phẩm" : "Đã khôi phục sản phẩm";
         return ResponseEntity.ok(msg);
+    }
+
+    @PostMapping("/{id}/variants")
+    public ResponseEntity<ProductVariantDto> addVariant(
+            @PathVariable String id,
+            @RequestBody @Valid CreateVariantRequest request) {
+        return ResponseEntity.ok(productService.addVariant(id, request));
+    }
+
+    @PutMapping("/{productId}/variants/{variantId}")
+    public ResponseEntity<ProductVariantDto> updateVariant(
+            @PathVariable String productId,
+            @PathVariable UUID variantId,
+            @RequestBody @Valid UpdateVariantRequest request) {
+        return ResponseEntity.ok(productService.updateVariant(productId, variantId, request));
+    }
+
+    @DeleteMapping("/{productId}/variants/{variantId}")
+    public ResponseEntity<String> deleteVariant(
+            @PathVariable String productId,
+            @PathVariable UUID variantId) {
+        productService.deleteVariant(productId, variantId);
+        return ResponseEntity.ok("Đã xóa biến thể thành công");
     }
 }

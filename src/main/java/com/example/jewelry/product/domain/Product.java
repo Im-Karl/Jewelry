@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Entity
 @Table(name = "products")
@@ -47,8 +48,8 @@ public class Product {
     @JoinColumn(name = "category_id")
     private Category category;
 
-    @Column(nullable = false)
-    private int stockQuantity = 0;
+    @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<ProductVariant> variants;
 
     private boolean isDeleted = false;
     private LocalDateTime createdAt = LocalDateTime.now();

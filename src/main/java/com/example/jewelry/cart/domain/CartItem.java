@@ -1,6 +1,7 @@
 package com.example.jewelry.cart.domain;
 
 import com.example.jewelry.product.domain.Product;
+import com.example.jewelry.product.domain.ProductVariant;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -27,4 +28,8 @@ public class CartItem {
     private Product product;
 
     private int quantity;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "variant_id", nullable = false)
+    private ProductVariant variant;
 }

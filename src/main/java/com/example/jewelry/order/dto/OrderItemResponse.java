@@ -10,6 +10,10 @@ public class OrderItemResponse {
     private String productId;
     private String productName;
     private String productMainImageUrl;
+    private UUID variantId;
+    private String size;
+    private String color;
     private int quantity;
     private BigDecimal priceAtPurchase;
+
 }
