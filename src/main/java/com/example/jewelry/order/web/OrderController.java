@@ -2,6 +2,8 @@ package com.example.jewelry.order.web;
 
 import com.example.jewelry.order.dto.CreateOrderRequest;
 import com.example.jewelry.order.dto.OrderResponse;
+import com.example.jewelry.order.dto.UpdateOrderStatusRequest;
+import com.example.jewelry.shared.enums.OrderStatus;
 import com.example.jewelry.shared.exception.DomainException;
 import com.example.jewelry.shared.exception.DomainExceptionCode;
 import com.example.jewelry.shared.security.SecurityUtil;
@@ -62,4 +64,18 @@ public class OrderController {
         orderService.cancelOrder(userId, orderId);
         return ResponseEntity.ok("Hủy đơn hàng thành công, hệ thống đã hoàn trả điểm và mã giảm giá.");
     }
+
+
+    @PutMapping("/{orderId}/status")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<OrderResponse> updateStatusOrder(
+            @PathVariable UUID orderId,
+            @RequestBody UpdateOrderStatusRequest request) {
+
+        return ResponseEntity.ok(
+                orderService.updateOrderStatus(orderId, request.getStatus())
+        );
+    }
+
+
 }

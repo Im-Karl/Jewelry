@@ -20,6 +20,7 @@ public class OrderResponse {
     private boolean isGift;
     private String giftMessage;
     private LocalDateTime createdAt;
+    private LocalDateTime deliveredAt;
 
     private String userName;
     private String userEmail;

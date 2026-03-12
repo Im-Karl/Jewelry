@@ -15,17 +15,14 @@ import com.example.jewelry.product.domain.Product;
 import com.example.jewelry.product.domain.ProductRepository;
 import com.example.jewelry.product.domain.ProductVariant;
 import com.example.jewelry.product.domain.ProductVariantRepository;
-import com.example.jewelry.product.web.ProductService;
 import com.example.jewelry.shared.enums.OrderStatus;
 import com.example.jewelry.shared.exception.DomainException;
 import com.example.jewelry.shared.exception.DomainExceptionCode;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.core.parameters.P;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -49,7 +46,6 @@ public class OrderServiceImpl implements OrderService {
     @Override
     @Transactional
     public OrderResponse createOrder(UUID userId, CreateOrderRequest request) {
-        // 1. Lấy Cart Entity của User
         Cart cart = cartRepository.findByUserId(userId)
                 .orElseThrow(() -> new DomainException(DomainExceptionCode.CART_EMPTY));
 
@@ -68,11 +64,6 @@ public class OrderServiceImpl implements OrderService {
             throw new RuntimeException("Không tìm thấy sản phẩm nào được chọn trong giỏ hàng!");
         }
 
-        // (Optional) Kiểm tra xem user có gửi thiếu ID nào không tồn tại không
-//        if (selectedItems.size() != request.getCartItemIds().size()) {
-//            // Có thể warning hoặc throw lỗi tùy nghiệp vụ
-//        }
-
         // 3. Tạo Order Header
         Order order = Order.builder()
                 .user(cart.getUser())
@@ -84,6 +75,8 @@ public class OrderServiceImpl implements OrderService {
                 .giftMessage(request.getGiftMessage())
                 .status(OrderStatus.PENDING)
                 .items(new ArrayList<>())
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
                 .build();
 
         BigDecimal totalAmount = BigDecimal.ZERO;
@@ -93,18 +86,18 @@ public class OrderServiceImpl implements OrderService {
             ProductVariant variant = cartItem.getVariant();
             int quantity = cartItem.getQuantity();
 
-            // A. Trừ tồn kho (Atomic Update)
+            // Trừ tồn kho
             int rowsUpdated = variantRepository.deductStock(variant.getId(), quantity);
             if (rowsUpdated == 0) {
                 throw new DomainException(DomainExceptionCode.OUT_OF_STOCK); // Nhớ thêm enum này
             }
 
-            // B. Tính tiền
+            // Tính tiền
             BigDecimal unitPrice = product.getBasePrice().add(variant.getAdditionalPrice());
             BigDecimal itemTotal = unitPrice.multiply(BigDecimal.valueOf(quantity));
             totalAmount = totalAmount.add(itemTotal);
 
-            // C. Tạo OrderItem
+            // Tạo OrderItem
             OrderItem orderItem = OrderItem.builder()
                     .order(order)
                     .product(product)
@@ -251,6 +244,7 @@ public class OrderServiceImpl implements OrderService {
         dto.setCreatedAt(order.getCreatedAt());
         dto.setCouponCode(order.getCouponCode());
         dto.setDiscountAmount(order.getDiscountAmount());
+        dto.setDeliveredAt(order.getDeliveredAt());
         dto.setFinalAmount(order.getFinalAmount() != null ? order.getFinalAmount() : order.getTotalAmount());
 
         if (order.getUser() != null) {
@@ -334,11 +328,23 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Override
-    public void updateOrderStatus(UUID orderId, OrderStatus status) {
+    @Transactional
+    public OrderResponse  updateOrderStatus(UUID orderId, OrderStatus newStatus) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new DomainException(DomainExceptionCode.ORDER_NOT_FOUND));
-        order.setStatus(status);
+
+        if (order.getStatus() == OrderStatus.CANCELLED) {
+            throw new RuntimeException("Đơn hàng đã hủy, không thể cập nhật trạng thái khác!");
+        }
+
+        order.setStatus(newStatus);
+
+        if (newStatus == OrderStatus.COMPLETED) {
+            order.setDeliveredAt(LocalDateTime.now());
+        }
+
         orderRepository.save(order);
+        return mapToDto(order);
     }
 
     @Override

@@ -43,10 +43,8 @@ public class Order {
     private boolean gift;
     private String giftMessage;
 
-    // Audit
-    private LocalDateTime createdAt = LocalDateTime.now();
+    private LocalDateTime createdAt ;
 
-    // Quan hệ 1-N với OrderItem
     @OneToMany(
             mappedBy = "order",
             cascade = CascadeType.ALL,
@@ -60,6 +58,13 @@ public class Order {
     private BigDecimal pointsDiscountAmount;
     private BigDecimal finalAmount;
 
+    private LocalDateTime updatedAt;
+    private LocalDateTime deliveredAt;
+
+    @PreUpdate
+    protected void onUpdate() {
+        this.updatedAt = LocalDateTime.now();
+    }
     @PrePersist
     protected void onCreate() {
         this.createdAt = LocalDateTime.now();
