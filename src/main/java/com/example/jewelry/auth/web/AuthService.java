@@ -7,4 +7,6 @@ import com.example.jewelry.auth.dto.UserWithTokenDto;
 public interface AuthService {
     UserWithTokenDto register(RegisterRequestDto request);
     UserWithTokenDto login(LoginRequestDto request);
+    void forgotPassword(String email);
+    void resetPassword(String otpCode, String newPassword);
 }

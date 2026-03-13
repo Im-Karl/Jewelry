@@ -148,4 +148,36 @@ public class EmailService {
             log.error("Failed to send coupon email", e);
         }
     }
+
+    @Async
+    public void sendOtpEmail(String toEmail, String otpCode) {
+        try {
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+
+            helper.setFrom(fromEmail);
+            helper.setTo(toEmail);
+            helper.setSubject("Mã OTP Khôi Phục Mật Khẩu - Silveré");
+
+            String htmlContent = """
+                <div style='text-align: center; font-family: Arial, sans-serif; padding: 30px; border: 1px solid #e0e0e0; border-radius: 10px; max-width: 500px; margin: 0 auto;'>
+                    <h2 style='color: #0056b3;'>Khôi Phục Mật Khẩu</h2>
+                    <p>Chào bạn,</p>
+                    <p>Bạn vừa yêu cầu đặt lại mật khẩu. Vui lòng sử dụng mã OTP gồm 6 chữ số dưới đây để tiếp tục:</p>
+                    <div style='background-color: #f8f9fa; border: 2px dashed #0056b3; border-radius: 5px; padding: 15px; margin: 20px auto; width: fit-content; font-size: 28px; font-weight: bold; letter-spacing: 5px; color: #d9534f;'>
+                        %s
+                    </div>
+                    <p style='color: #777; font-size: 14px;'>⏳ Mã này sẽ hết hạn trong vòng <strong>5 phút</strong>.</p>
+                    <p style='color: #999; font-size: 12px; margin-top: 30px;'>Nếu bạn không yêu cầu đổi mật khẩu, vui lòng phớt lờ email này để bảo vệ tài khoản.</p>
+                </div>
+            """.formatted(otpCode);
+
+            helper.setText(htmlContent, true);
+            mailSender.send(message);
+            log.info("OTP email sent successfully to {}", toEmail);
+
+        } catch (MessagingException e) {
+            log.error("Failed to send OTP email to {}", toEmail, e);
+        }
+    }
 }
