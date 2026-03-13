@@ -7,11 +7,13 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
+import java.util.List;
 import java.util.UUID;
 
 @Component
@@ -32,11 +34,23 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             try {
                 if (jwtProvider.isValid(token)) {
                     UUID userId = jwtProvider.extractUserId(token);
-                    // Gọi service lấy thông tin user
+
                     UserDto currentUser = userService.getUserById(userId);
 
-                    var authentication = new UsernamePasswordAuthenticationToken(currentUser, null, null);
-                    authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                    var authorities = List.of(
+                            new SimpleGrantedAuthority("ROLE_" + currentUser.getRole())
+                    );
+
+                    var authentication = new UsernamePasswordAuthenticationToken(
+                            currentUser,
+                            null,
+                            authorities
+                    );
+
+                    authentication.setDetails(
+                            new WebAuthenticationDetailsSource().buildDetails(request)
+                    );
+
                     SecurityContextHolder.getContext().setAuthentication(authentication);
                 }
             } catch (Exception e) {

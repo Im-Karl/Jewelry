@@ -4,10 +4,7 @@ import com.example.jewelry.warranty.dto.BookingResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.UUID;
@@ -20,7 +17,7 @@ public class BookingController {
     private final BookingService bookingService;
 
     @GetMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPPORT')")
     public ResponseEntity<List<BookingResponse>> getAll() {
         return ResponseEntity.ok(bookingService.getAll());
     }
@@ -28,6 +25,14 @@ public class BookingController {
     @GetMapping("/{id}")
     public ResponseEntity<BookingResponse> getById(@PathVariable UUID id) {
         return ResponseEntity.ok(bookingService.getById(id));
+    }
+
+    @PatchMapping("/{id}/status")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPPORT')")
+    public ResponseEntity<BookingResponse> updateStatus(
+            @PathVariable UUID id,
+            @RequestParam String status) { // "APPROVED","REJECTED"
+        return ResponseEntity.ok(bookingService.updateBookingStatus(id, status));
     }
 
     @GetMapping("/code/{warrantyCode}")

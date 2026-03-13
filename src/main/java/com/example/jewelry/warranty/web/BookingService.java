@@ -12,4 +12,6 @@ public interface BookingService {
     BookingResponse getById(UUID id);
 
     List<BookingResponse> getByWarrantyCode(String warrantyCode);
+
+    BookingResponse updateBookingStatus(UUID bookingId, String status);
 }

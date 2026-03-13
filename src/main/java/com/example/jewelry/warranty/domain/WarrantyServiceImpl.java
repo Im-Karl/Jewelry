@@ -113,8 +113,14 @@ public class WarrantyServiceImpl implements WarrantyService { // <--- Implement 
 
     private BookingResponse mapToResponse(ServiceBooking b) {
         return BookingResponse.builder()
+                .id(b.getId())
+                .warrantyCode(
+                        b.getWarranty() != null ? b.getWarranty().getWarrantyCode() : null
+                )
                 .serviceType(b.getServiceType())
                 .bookingDate(b.getBookingDate())
+                .customerName(b.getUser() != null ? b.getUser().getFullName() : "Khách vãng lai")
+                .status(b.getStatus())
                 .note(b.getNote())
                 .build();
     }
