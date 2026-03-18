@@ -1,8 +1,11 @@
 package com.example.jewelry.auth.domain;
 
+import com.example.jewelry.shared.enums.CustomerTier;
 import com.example.jewelry.shared.enums.UserRole;
 import jakarta.persistence.*;
 import lombok.*;
+
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.UUID;
 
@@ -36,7 +39,7 @@ public class User {
 
     // --- Loyalty ---
     private int loyaltyPoints = 0;
-    private String membershipTier = "SILVER";
+//    private String membershipTier = "MEMBER";
 
     @Enumerated(EnumType.STRING)
     private UserRole role;
@@ -47,4 +50,11 @@ public class User {
     // Audit fields (Optional nhưng nên có)
     @Column(updatable = false)
     private LocalDate createdAt = LocalDate.now();
+
+    @Column(nullable = false)
+    private BigDecimal totalSpent = BigDecimal.ZERO;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private CustomerTier tier = CustomerTier.MEMBER;
 }

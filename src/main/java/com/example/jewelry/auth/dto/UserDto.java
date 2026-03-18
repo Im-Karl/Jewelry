@@ -1,9 +1,12 @@
 package com.example.jewelry.auth.dto;
 
 import com.example.jewelry.shared.constants.ErrorMessage;
+import com.example.jewelry.shared.enums.CustomerTier;
 import com.example.jewelry.shared.enums.UserRole;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
+
+import java.math.BigDecimal;
 import java.util.UUID;
 
 @Data
@@ -17,6 +20,8 @@ public class UserDto {
     private String fullName;
 
     private UserRole role;
+    private BigDecimal totalSpent;
+    private CustomerTier tier;
 
     private String avatarUrl;
 }

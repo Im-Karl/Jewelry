@@ -15,6 +15,7 @@ import com.example.jewelry.product.domain.Product;
 import com.example.jewelry.product.domain.ProductRepository;
 import com.example.jewelry.product.domain.ProductVariant;
 import com.example.jewelry.product.domain.ProductVariantRepository;
+import com.example.jewelry.shared.enums.CustomerTier;
 import com.example.jewelry.shared.enums.OrderStatus;
 import com.example.jewelry.shared.exception.DomainException;
 import com.example.jewelry.shared.exception.DomainExceptionCode;
@@ -23,6 +24,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -43,6 +45,23 @@ public class OrderServiceImpl implements OrderService {
     private final UserRepository userRepository;
     private final ProductVariantRepository variantRepository;
 
+    private int calculateTierDiscountPercent(UUID userId) {
+        // Lấy tất cả các đơn hàng ĐÃ HOÀN THÀNH của User này
+        BigDecimal totalSpent = orderRepository.findByUserId(userId).stream()
+                .filter(o -> o.getStatus() == OrderStatus.COMPLETED)
+                .map(Order::getFinalAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        double spent = totalSpent.doubleValue();
+
+        if (spent >= 5_000_000_000L) return 15;      // Royal (>= 5 tỷ)
+        if (spent >= 2_000_000_000L) return 10;      // Elite (2 tỷ - 5 tỷ)
+        if (spent >= 800_000_000L) return 8;         // Diamond (800tr - 2 tỷ)
+        if (spent >= 200_000_000L) return 5;         // Gold (200tr - 800tr)
+        if (spent >= 50_000_000L) return 3;          // Silver (50tr - 200tr)
+        return 0;                                    // Member (< 50tr)
+    }
+
     @Override
     @Transactional
     public OrderResponse createOrder(UUID userId, CreateOrderRequest request) {
@@ -53,18 +72,14 @@ public class OrderServiceImpl implements OrderService {
             throw new DomainException(DomainExceptionCode.CART_EMPTY);
         }
 
-        // 2. Lọc ra các CartItem mà user muốn mua (dựa trên List ID gửi lên)
-        // Logic: Chỉ lấy những item nào có ID nằm trong request.getCartItemIds()
         List<CartItem> selectedItems = cart.getItems().stream()
                 .filter(item -> request.getCartItemIds().contains(item.getId()))
                 .collect(Collectors.toList());
 
-        // Validate: Nếu user gửi ID tào lao không có trong giỏ, hoặc list rỗng
         if (selectedItems.isEmpty()) {
             throw new RuntimeException("Không tìm thấy sản phẩm nào được chọn trong giỏ hàng!");
         }
 
-        // 3. Tạo Order Header
         Order order = Order.builder()
                 .user(cart.getUser())
                 .shippingAddress(request.getShippingAddress())
@@ -86,18 +101,15 @@ public class OrderServiceImpl implements OrderService {
             ProductVariant variant = cartItem.getVariant();
             int quantity = cartItem.getQuantity();
 
-            // Trừ tồn kho
             int rowsUpdated = variantRepository.deductStock(variant.getId(), quantity);
             if (rowsUpdated == 0) {
-                throw new DomainException(DomainExceptionCode.OUT_OF_STOCK); // Nhớ thêm enum này
+                throw new DomainException(DomainExceptionCode.OUT_OF_STOCK);
             }
 
-            // Tính tiền
             BigDecimal unitPrice = product.getBasePrice().add(variant.getAdditionalPrice());
             BigDecimal itemTotal = unitPrice.multiply(BigDecimal.valueOf(quantity));
             totalAmount = totalAmount.add(itemTotal);
 
-            // Tạo OrderItem
             OrderItem orderItem = OrderItem.builder()
                     .order(order)
                     .product(product)
@@ -113,60 +125,53 @@ public class OrderServiceImpl implements OrderService {
 
         order.setTotalAmount(totalAmount);
 
-        BigDecimal discountAmount = BigDecimal.ZERO;
+        int tierPercent = cart.getUser().getTier() != null ? cart.getUser().getTier().getDiscountPercent() : 0;
+        BigDecimal tierDiscountAmount = totalAmount
+                .multiply(BigDecimal.valueOf(tierPercent))
+                .divide(BigDecimal.valueOf(100), 0, RoundingMode.HALF_UP);
+
+        BigDecimal couponDiscountAmount = BigDecimal.ZERO;
         String couponCode = request.getCouponCode();
 
         if( couponCode != null && !couponCode.trim().isEmpty() ) {
-            Optional<UserCoupon> userCoupon = userCouponRepository.findByGeneratedCode((couponCode));
+            Optional<UserCoupon> userCoupon = userCouponRepository.findByGeneratedCode(couponCode);
 
             if(userCoupon.isPresent()) {
                 UserCoupon uCoupon = userCoupon.get();
+                if(!uCoupon.getEmail().equals(cart.getUser().getEmail())) throw new RuntimeException("Mã giảm giá không thuộc về bạn");
+                if(uCoupon.isUsed()) throw new RuntimeException("Mã giảm giá đã được sử dụng");
+                if(uCoupon.getExpiredAt().isBefore(LocalDateTime.now())) throw new RuntimeException("Mã giảm giá đã hết hạn");
 
-                if(!uCoupon.getEmail().equals(cart.getUser().getEmail())) {
-                    throw new RuntimeException("Mã giảm giá không thuộc về tài khoản của bạn");
-                }
-                if(uCoupon.isUsed()){
-                    throw new RuntimeException("Mã giảm giá đã được sử dụng");
-                }
-                if(uCoupon.getExpiredAt().isBefore(LocalDateTime.now())){
-                    throw new RuntimeException("Mã giảm giá đã hết hạn");
-                }
-
-                discountAmount = calculateDiscount(totalAmount, uCoupon.getDiscountPercent());
-
+                couponDiscountAmount = uCoupon.getDiscountAmount(); // Dùng số tiền cố định
                 uCoupon.setUsed(true);
                 userCouponRepository.save(uCoupon);
-            }else {
+            } else {
                 Optional<PublicCoupon> publicCouponOpt = publicCouponRepository.findByCodeAndActiveTrue(couponCode.toUpperCase());
-
                 if(publicCouponOpt.isPresent()){
                     PublicCoupon pCoupon = publicCouponOpt.get();
-
                     LocalDateTime now = LocalDateTime.now();
-                    if (pCoupon.getExpiredAt() != null && pCoupon.getExpiredAt().isBefore(now)) {
-                        throw new RuntimeException("Mã giảm giá đã hết hạn!");
-                    }
-                    if (pCoupon.getStartAt() != null && pCoupon.getStartAt().isAfter(now)) {
-                        throw new RuntimeException("Mã giảm giá chưa đến đợt áp dụng!");
-                    }
-                    // Validate Usage Limit (Nếu maxUsage != -1)
-                    if (pCoupon.getMaxUsage() > 0 && pCoupon.getUsedCount() >= pCoupon.getMaxUsage()) {
-                        throw new RuntimeException("Mã giảm giá đã hết lượt sử dụng!");
-                    }
+                    if (pCoupon.getExpiredAt() != null && pCoupon.getExpiredAt().isBefore(now)) throw new RuntimeException("Mã giảm giá đã hết hạn!");
+                    if (pCoupon.getStartAt() != null && pCoupon.getStartAt().isAfter(now)) throw new RuntimeException("Mã chưa đến đợt áp dụng!");
+                    if (pCoupon.getMaxUsage() > 0 && pCoupon.getUsedCount() >= pCoupon.getMaxUsage()) throw new RuntimeException("Mã giảm giá đã hết lượt sử dụng!");
 
-                    discountAmount = calculateDiscount(totalAmount, pCoupon.getDiscountPercent());
-
+                    couponDiscountAmount = pCoupon.getDiscountAmount(); // Dùng số tiền cố định
                     pCoupon.setUsedCount(pCoupon.getUsedCount() + 1);
                     publicCouponRepository.save(pCoupon);
-                }else{
+                } else {
                     throw new RuntimeException("Mã giảm giá không tồn tại hoặc không hợp lệ!");
                 }
             }
         }
 
-        BigDecimal tempAmount = totalAmount.subtract(discountAmount);
+        // TỔNG TIỀN ĐƯỢC GIẢM = GIẢM HẠNG THÀNH VIÊN + GIẢM VOUCHER
+        BigDecimal totalDiscountAmount = tierDiscountAmount.add(couponDiscountAmount);
+
+        BigDecimal tempAmount = totalAmount.subtract(totalDiscountAmount);
         if (tempAmount.compareTo(BigDecimal.ZERO) < 0) tempAmount = BigDecimal.ZERO;
 
+        // ==========================================
+        // 3. TÍNH ĐIỂM THƯỞNG (Points)
+        // ==========================================
         int pointsUsed = 0;
         BigDecimal pointsDiscount = BigDecimal.ZERO;
 
@@ -176,10 +181,10 @@ public class OrderServiceImpl implements OrderService {
             int requestedPoints = request.getPointsToUse();
 
             if (requestedPoints > userCurrentPoints) {
-                throw new RuntimeException("Bạn không đủ điểm thưởng để sử dụng (" + userCurrentPoints + " hiện có).");
+                throw new RuntimeException("Không đủ điểm thưởng (" + userCurrentPoints + " hiện có).");
             }
 
-            BigDecimal requestedValue = BigDecimal.valueOf(requestedPoints); // 1 điểm = 1 VND
+            BigDecimal requestedValue = BigDecimal.valueOf(requestedPoints);
 
             if (requestedValue.compareTo(tempAmount) > 0) {
                 pointsDiscount = tempAmount;
@@ -199,7 +204,7 @@ public class OrderServiceImpl implements OrderService {
         }
 
         order.setCouponCode(couponCode);
-        order.setDiscountAmount(discountAmount);
+        order.setDiscountAmount(totalDiscountAmount); // Ghi nhận TỔNG SỐ TIỀN ĐƯỢC GIẢM vào DB
         order.setPointsUsed(pointsUsed);
         order.setPointsDiscountAmount(pointsDiscount);
         order.setFinalAmount(finalAmount);
@@ -207,7 +212,7 @@ public class OrderServiceImpl implements OrderService {
         Order savedOrder = orderRepository.save(order);
 
         cart.getItems().removeAll(selectedItems);
-        cartRepository.save(cart); // Cập nhật lại giỏ hàng
+        cartRepository.save(cart);
 
         emailService.sendOrderConfirmation(savedOrder);
         return mapToDto(savedOrder);
@@ -329,7 +334,7 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     @Transactional
-    public OrderResponse  updateOrderStatus(UUID orderId, OrderStatus newStatus) {
+    public OrderResponse updateOrderStatus(UUID orderId, OrderStatus newStatus) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new DomainException(DomainExceptionCode.ORDER_NOT_FOUND));
 
@@ -337,14 +342,34 @@ public class OrderServiceImpl implements OrderService {
             throw new RuntimeException("Đơn hàng đã hủy, không thể cập nhật trạng thái khác!");
         }
 
-        order.setStatus(newStatus);
-
-        if (newStatus == OrderStatus.COMPLETED) {
+        if (newStatus == OrderStatus.COMPLETED && order.getStatus() != OrderStatus.COMPLETED) {
             order.setDeliveredAt(LocalDateTime.now());
+
+            User user = order.getUser();
+            BigDecimal newTotalSpent = user.getTotalSpent().add(order.getFinalAmount());
+            user.setTotalSpent(newTotalSpent);
+
+            upgradeTierIfNeeded(user, newTotalSpent);
+
+            userRepository.save(user);
         }
 
+        order.setStatus(newStatus);
         orderRepository.save(order);
         return mapToDto(order);
+    }
+
+    private void upgradeTierIfNeeded(User user, BigDecimal totalSpent) {
+        double spent = totalSpent.doubleValue();
+        CustomerTier newTier = CustomerTier.MEMBER;
+
+        if (spent >= 5_000_000_000L) newTier = CustomerTier.ROYAL;
+        else if (spent >= 2_000_000_000L) newTier = CustomerTier.ELITE;
+        else if (spent >= 800_000_000L) newTier = CustomerTier.DIAMOND;
+        else if (spent >= 200_000_000L) newTier = CustomerTier.GOLD;
+        else if (spent >= 50_000_000L) newTier = CustomerTier.SILVER;
+
+        user.setTier(newTier);
     }
 
     @Override

@@ -6,6 +6,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -24,7 +25,7 @@ public class PublicCoupon {
     @Column(unique = true, nullable = false)
     private String code; // VD: NOEL2026, TET50
 
-    private int discountPercent;
+    private BigDecimal discountAmount;
 
     private int maxUsage;      // Tổng lượt dùng  || maxUsage = -1 → không giới hạn
     private int usedCount;     // Đã dùng bao nhiêu lần

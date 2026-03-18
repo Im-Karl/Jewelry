@@ -3,6 +3,7 @@ package com.example.jewelry.gamification.dto;
 import lombok.Builder;
 import lombok.Data;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -13,7 +14,7 @@ public class PublicCouponResponse {
     private UUID id;
     private String code;
 
-    private int discountPercent;
+    private BigDecimal discountAmount;
 
     private int maxUsage;
     private int usedCount;

@@ -2,6 +2,7 @@ package com.example.jewelry.auth.web;
 
 import com.example.jewelry.auth.dto.UpdateUserRequestDto;
 import com.example.jewelry.auth.dto.UserDto;
+import com.example.jewelry.shared.response.MessageResponse;
 import com.example.jewelry.shared.security.SecurityUtil;
 import com.example.jewelry.shared.exception.DomainException;
 import com.example.jewelry.shared.exception.DomainExceptionCode;
@@ -48,5 +49,14 @@ public class UserController {
         return ResponseEntity.noContent().build();
     }
 
+    @PatchMapping("/{id}/role")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<MessageResponse> updateRole(
+                @PathVariable("id") UUID id,
+                @RequestParam("role") String role){
+
+        userService.updateUserRole(id, role);
+        return ResponseEntity.ok(new MessageResponse("Cập nhật quyền thành công"));
+    }
 
 }

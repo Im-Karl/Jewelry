@@ -45,7 +45,7 @@ public class PublicCouponServiceImpl implements PublicCouponService {
 
         PublicCoupon coupon = PublicCoupon.builder()
                 .code(request.getCode().toUpperCase())
-                .discountPercent(request.getDiscountPercent())
+                .discountAmount(request.getDiscountAmount())
                 .maxUsage(request.getMaxUsage())
                 .usedCount(0)
                 .startAt(LocalDateTime.now())
@@ -94,7 +94,7 @@ public class PublicCouponServiceImpl implements PublicCouponService {
         for (PublicCoupon pc : publicCoupons) {
             result.add(AvailableCouponResponse.builder()
                     .code(pc.getCode())
-                    .discountPercent(pc.getDiscountPercent())
+                    .discountAmount(pc.getDiscountAmount())
                     .type("PUBLIC") // Nhãn
                     .expiredAt(pc.getExpiredAt())
                     .description("Mã giảm giá toàn sàn")
@@ -106,7 +106,7 @@ public class PublicCouponServiceImpl implements PublicCouponService {
         for (UserCoupon uc : userCoupons) {
             result.add(AvailableCouponResponse.builder()
                     .code(uc.getGeneratedCode())
-                    .discountPercent(uc.getDiscountPercent())
+                    .discountAmount(uc.getDiscountAmount())
                     .type("PERSONAL") // Nhãn
                     .expiredAt(uc.getExpiredAt())
                     .description("Mã trúng thưởng của riêng bạn")
@@ -114,8 +114,7 @@ public class PublicCouponServiceImpl implements PublicCouponService {
         }
 
         // Có thể sort theo % giảm giá cao nhất lên đầu
-        result.sort((c1, c2) -> Integer.compare(c2.getDiscountPercent(), c1.getDiscountPercent()));
-
+        result.sort((c1, c2) -> c2.getDiscountAmount().compareTo(c1.getDiscountAmount()));
         return result;
     }
 
@@ -124,7 +123,7 @@ public class PublicCouponServiceImpl implements PublicCouponService {
         return PublicCouponResponse.builder()
                 .id(coupon.getId())
                 .code(coupon.getCode())
-                .discountPercent(coupon.getDiscountPercent())
+                .discountAmount(coupon.getDiscountAmount())
                 .maxUsage(coupon.getMaxUsage())
                 .usedCount(coupon.getUsedCount())
                 .startAt(coupon.getStartAt())

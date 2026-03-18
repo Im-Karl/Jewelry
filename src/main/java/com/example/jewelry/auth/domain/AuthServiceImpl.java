@@ -35,7 +35,6 @@ public class AuthServiceImpl implements AuthService {
                 .password(passwordEncoder.encode(request.getPassword()))
                 .role(UserRole.CUSTOMER)
                 .loyaltyPoints(0)
-                .membershipTier("SILVER")
                 .build();
 
         User savedUser = userRepository.save(user);

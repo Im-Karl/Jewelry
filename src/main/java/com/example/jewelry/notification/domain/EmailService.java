@@ -12,6 +12,7 @@ import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.text.NumberFormat;
 import java.util.Locale;
 
@@ -122,7 +123,7 @@ public class EmailService {
     }
 
     @Async
-    public void sendCouponEmail(String toEmail, String couponCode, int discount) {
+    public void sendCouponEmail(String toEmail, String couponCode, BigDecimal discount) {
         try {
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");

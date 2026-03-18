@@ -2,6 +2,8 @@ package com.example.jewelry.gamification.domain;
 
 import jakarta.persistence.*;
 import lombok.*;
+
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -19,7 +21,7 @@ public class UserCoupon {
     private String email;
     private String generatedCode; // Mã unique: SALE10-X8J2K
 
-    private int discountPercent;
+    private BigDecimal discountAmount;
     private boolean isUsed;
 
     private LocalDateTime createdAt;

@@ -3,6 +3,8 @@ package com.example.jewelry.gamification.domain;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.math.BigDecimal;
+
 @Entity
 @Table(name = "wheel_prizes")
 @Data
@@ -20,7 +22,7 @@ public class WheelPrize {
 
     private boolean isWinning; // Có phải là trúng thưởng không?
     private String couponCodePrefix; // Tiền tố mã: SALE10, GIFT...
-    private int discountPercent; // Giá trị giảm (nếu có)
+    private BigDecimal discountAmount;
 
     private boolean active;
 }

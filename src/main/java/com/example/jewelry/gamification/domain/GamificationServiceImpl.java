@@ -50,15 +50,15 @@ public class GamificationServiceImpl implements GamificationService {
             UserCoupon coupon = UserCoupon.builder()
                     .email(request.getEmail())
                     .generatedCode(code)
-                    .discountPercent(selectedPrize.getDiscountPercent())
+                    .discountAmount(selectedPrize.getDiscountAmount())
                     .isUsed(false)
                     .createdAt(LocalDateTime.now())
                     .expiredAt(LocalDateTime.now().plusDays(7)) // Hạn 7 ngày
                     .build();
             couponRepository.save(coupon);
 
-            // Gửi mail
-            emailService.sendCouponEmail(request.getEmail(), code, selectedPrize.getDiscountPercent());
+
+            emailService.sendCouponEmail(request.getEmail(), code, selectedPrize.getDiscountAmount());
         } else {
             // Trường hợp quay vào ô "Chúc may mắn lần sau" => Vẫn lưu email để chặn quay tiếp
             UserCoupon lost = UserCoupon.builder()

@@ -5,6 +5,7 @@ import com.example.jewelry.auth.dto.UserDto;
 import com.example.jewelry.auth.web.UserService;
 import com.example.jewelry.consultation.service.FengShuiCalculator;
 import com.example.jewelry.consultation.service.ZodiacCalculator;
+import com.example.jewelry.shared.enums.UserRole;
 import com.example.jewelry.shared.exception.DomainException;
 import com.example.jewelry.shared.exception.DomainExceptionCode;
 import com.example.jewelry.shared.storage.FileStorageService;
@@ -83,6 +84,18 @@ public class UserServiceImpl implements UserService {
 //        userRepository.delete(user);
 
         user.setDeleted(true);
+    }
+
+    @Override
+    @Transactional
+    public void updateUserRole(UUID userId, String newRole) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new DomainException(DomainExceptionCode.USER_NOT_FOUND));
+
+        String cleanRole = newRole.trim().toUpperCase();
+        user.setRole(UserRole.valueOf(cleanRole));
+
+        userRepository.save(user);
     }
 
 }

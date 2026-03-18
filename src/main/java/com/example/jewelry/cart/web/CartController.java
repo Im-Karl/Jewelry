@@ -22,7 +22,7 @@ public class CartController {
 
     private final CartService cartService;
 
-    @GetMapping("/")
+    @GetMapping
     public ResponseEntity<CartResponse> getMyCart() {
         UUID userId = SecurityUtil.getCurrentUserId()
                 .orElseThrow(() -> new DomainException(DomainExceptionCode.USER_NOT_FOUND));
@@ -30,7 +30,7 @@ public class CartController {
     }
 
     // Thêm vào giỏ
-    @PostMapping("/")
+    @PostMapping
     public ResponseEntity<CartResponse> addToCart(@RequestBody @Valid AddToCartRequest request) {
         UUID userId = SecurityUtil.getCurrentUserId()
                 .orElseThrow(() -> new DomainException(DomainExceptionCode.USER_NOT_FOUND));
