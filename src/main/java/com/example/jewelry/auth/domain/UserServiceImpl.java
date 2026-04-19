@@ -47,6 +47,9 @@ public class UserServiceImpl implements UserService {
         if (StringUtils.hasText(request.getPhoneNumber())) {
             user.setPhoneNumber(request.getPhoneNumber());
         }
+        if (StringUtils.hasText(request.getGender())) {
+            user.setGender(request.getGender());
+        }
 
         // 3. Xử lý Upload Avatar (Nếu có gửi file)
         if (request.getAvatar() != null && !request.getAvatar().isEmpty()) {

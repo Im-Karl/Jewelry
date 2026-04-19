@@ -7,6 +7,7 @@ import com.example.jewelry.shared.exception.DomainExceptionCode;
 import com.example.jewelry.shared.response.PageResponse;
 import lombok.RequiredArgsConstructor;
 import org.modelmapper.ModelMapper;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -35,7 +36,7 @@ public class ProductServiceImpl implements ProductService {
     @Override
     public List<ProductDto> getAllProducts() {
         return productRepository.findAll().stream()
-                .map(product -> modelMapper.map(product, ProductDto.class))
+                .map(this::mapToDto)
                 .collect(Collectors.toList());
     }
 
@@ -43,13 +44,13 @@ public class ProductServiceImpl implements ProductService {
     public ProductDto getProductById(String id) {
         Product product = productRepository.findById(id)
                 .orElseThrow(() -> new DomainException(DomainExceptionCode.PRODUCT_NOT_FOUND));
-        return modelMapper.map(product, ProductDto.class);
+        return mapToDto(product);
     }
 
     @Override
     public List<ProductDto> getProductsByFengShui(String element) {
         return productRepository.findByFengShuiElement(element).stream()
-                .map(product -> modelMapper.map(product, ProductDto.class))
+                .map(this::mapToDto)
                 .collect(Collectors.toList());
     }
 
@@ -82,7 +83,7 @@ public class ProductServiceImpl implements ProductService {
 
         // 4. Lưu và trả về
         Product savedProduct = productRepository.save(product);
-        return modelMapper.map(savedProduct, ProductDto.class);
+        return mapToDto(savedProduct);
     }
 
     @Override
@@ -94,19 +95,30 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
-    public PageResponse<ProductDto> getProductsWithFilter(String search, Long categoryId, BigDecimal minPrice, BigDecimal maxPrice, int page, int size, String sortBy, String sortDir) {
-        String finalSearch = (search == null) ? "" : search;
-        Long finalCategoryId = (categoryId == null) ? 0L : categoryId; // Dùng 0L làm số giả vì ID DB luôn bắt đầu từ 1
-        BigDecimal finalMinPrice = (minPrice == null) ? BigDecimal.ZERO : minPrice;
-        BigDecimal finalMaxPrice = (maxPrice == null) ? new BigDecimal("999999999") : maxPrice; // 999 triệu
+    public PageResponse<ProductDto> getProductsWithFilter(
+            String search, Long categoryId, BigDecimal minPrice, BigDecimal maxPrice,
+            String fengShuiElement,
+            int page, int size, String sortBy, String sortDir) {
 
-        Sort sort = sortDir.equalsIgnoreCase(Sort.Direction.ASC.name()) ? Sort.by(sortBy).ascending() : Sort.by(sortBy).descending();
+        String finalSearch = StringUtils.hasText(search)
+                ? search.trim().toLowerCase().replace(" ", "-")
+                : "";
+
+        Long finalCategoryId = (categoryId == null) ? 0L : categoryId;
+        BigDecimal finalMinPrice = (minPrice == null) ? BigDecimal.ZERO : minPrice;
+        BigDecimal finalMaxPrice = (maxPrice == null) ? new BigDecimal("999999999") : maxPrice;
+        String finalFengShui = (fengShuiElement == null || fengShuiElement.equalsIgnoreCase("ALL")) ? "" : fengShuiElement;
+
+        Sort sort = sortDir.equalsIgnoreCase(Sort.Direction.ASC.name())
+                ? Sort.by(sortBy).ascending()
+                : Sort.by(sortBy).descending();
         Pageable pageable = PageRequest.of(page, size, sort);
 
-        Page<Product> productPage = productRepository.filterProducts(finalSearch, finalCategoryId, finalMinPrice, finalMaxPrice, pageable);
+        Page<Product> productPage = productRepository.filterProducts(
+                finalSearch, finalCategoryId, finalMinPrice, finalMaxPrice, finalFengShui, pageable);
 
         List<ProductDto> content = productPage.getContent().stream()
-                .map(product -> modelMapper.map(product, ProductDto.class))
+                .map(this::mapToDto)
                 .collect(Collectors.toList());
 
         return PageResponse.<ProductDto>builder()
@@ -145,7 +157,7 @@ public class ProductServiceImpl implements ProductService {
         }
 
         Product updatedProduct = productRepository.save(product);
-        return modelMapper.map(updatedProduct, ProductDto.class);
+        return mapToDto(updatedProduct);
     }
 
     @Override
@@ -214,5 +226,53 @@ public class ProductServiceImpl implements ProductService {
         if(!variant.getProduct().getId().equals(productId)) {throw new RuntimeException("Biến thể không thuộc sản phẩm này");}
 
         variantRepository.delete(variant);
+    }
+
+    @Override
+    public ProductDto getProductBySlug(String slug) {
+        Product product = productRepository.findBySlug(slug)
+                .orElseThrow(() -> new DomainException(DomainExceptionCode.PRODUCT_NOT_FOUND));
+        return mapToDto(product);
+    }
+
+    private ProductDto mapToDto(Product product) {
+        ProductDto dto = new ProductDto();
+
+        dto.setId(product.getId());
+        dto.setName(product.getName());
+        dto.setBasePrice(product.getBasePrice());
+        dto.setMainImageUrl(product.getMainImageUrl());
+        dto.setMaterialType(product.getMaterialType());
+        dto.setStoneType(product.getStoneType());
+        dto.setFengShuiElement(product.getFengShuiElement());
+        dto.setArEnabled(product.isArEnabled());
+        dto.setDescription(product.getDescription());
+        dto.setPlatingColor(product.getPlatingColor());
+        dto.setSoldQuantity(product.getSoldQuantity());
+
+        if (product.getCategory() != null) {
+            dto.setCategoryId(product.getCategory().getId());
+            dto.setCategoryName(product.getCategory().getName());
+        }
+
+        if (product.getVariants() != null) {
+            List<ProductVariantDto> variants = product.getVariants().stream()
+                    .map(v -> modelMapper.map(v, ProductVariantDto.class))
+                    .collect(Collectors.toList());
+            dto.setVariants(variants);
+        }
+
+        return dto;
+    }
+
+
+    @Override
+    @Cacheable(value = "bestSellersCache")
+    public List<ProductDto> getBestSellers() {
+        return productRepository
+                .findTop4ByIsDeletedFalseOrderBySoldQuantityDesc()
+                .stream()
+                .map(this::mapToDto)
+                .collect(Collectors.toList());
     }
 }

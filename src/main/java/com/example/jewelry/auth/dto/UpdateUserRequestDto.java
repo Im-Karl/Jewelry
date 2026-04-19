@@ -15,7 +15,7 @@ public class UpdateUserRequestDto {
     private MultipartFile avatar;
 
     private String zodiacSign;
-
+    private String fengShuiElement;
     private LocalDate birthDate;
     private String gender; // male, female, other
 

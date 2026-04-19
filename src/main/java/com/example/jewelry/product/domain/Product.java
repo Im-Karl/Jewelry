@@ -34,6 +34,9 @@ public class Product {
     private String stoneType;    // Đá CZ, Đá Mắt Mèo
     private String platingColor; // Xi vàng trắng, Xi hồng
 
+    @Column(nullable = false)
+    private int soldQuantity = 0;
+
     // --- Killer Features ---
     private String fengShuiElement; // Kim, Mộc, Thủy... (Để Chatbot query)
 

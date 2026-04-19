@@ -10,6 +10,7 @@ import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface ProductRepository extends JpaRepository<Product, String> {
@@ -21,6 +22,8 @@ public interface ProductRepository extends JpaRepository<Product, String> {
     @Query("SELECT p FROM Product p WHERE p.fengShuiElement = :element")
     List<Product> findByFengShuiElement(String element);
 
+    Optional<Product> findBySlug(String slug);
+
 //    @Modifying // Báo cho Spring biết đây là câu lệnh thay đổi dữ liệu (Update/Delete)
 //    @Query("UPDATE Product p SET p.stockQuantity = p.stockQuantity - :quantity " +
 //            "WHERE p.id = :productId AND p.stockQuantity >= :quantity")
@@ -30,10 +33,14 @@ public interface ProductRepository extends JpaRepository<Product, String> {
             "AND LOWER(p.name) LIKE LOWER(CONCAT('%', :search, '%')) " +
             "AND (:categoryId = 0L OR p.category.id = :categoryId) " +
             "AND (p.basePrice >= :minPrice) " +
-            "AND (p.basePrice <= :maxPrice)")
+            "AND (p.basePrice <= :maxPrice)" +
+            "AND (:fengShuiElement = '' OR p.fengShuiElement = :fengShuiElement)")
     Page<Product> filterProducts(@Param("search") String search,
                                  @Param("categoryId") Long categoryId,
                                  @Param("minPrice") BigDecimal minPrice,
                                  @Param("maxPrice") BigDecimal maxPrice,
+                                 @Param("fengShuiElement") String fengShuiElement,
                                  Pageable pageable);
+
+    List<Product> findTop4ByIsDeletedFalseOrderBySoldQuantityDesc();
 }

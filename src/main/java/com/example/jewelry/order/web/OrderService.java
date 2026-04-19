@@ -16,4 +16,5 @@ public interface OrderService {
 
     void deleteMyOrder(UUID userId, UUID orderId);
     void cancelOrder(UUID userId, UUID orderId);
+    void systemCancelOrder(UUID orderId);
 }

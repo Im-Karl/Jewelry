@@ -26,7 +26,6 @@ public class EmailService {
     @Value("${spring.mail.username}")
     private String fromEmail;
 
-    @Async
     public void sendOrderConfirmation(Order order) {
         try {
             MimeMessage message = mailSender.createMimeMessage();
@@ -179,6 +178,59 @@ public class EmailService {
 
         } catch (MessagingException e) {
             log.error("Failed to send OTP email to {}", toEmail, e);
+        }
+    }
+
+    public void sendOrderCancelledEmail(Order order) {
+        try {
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+
+            helper.setTo(order.getUser().getEmail());
+            helper.setSubject("THÔNG BÁO HỦY ĐƠN HÀNG #" + order.getId().toString().substring(0, 8).toUpperCase() + " - Silveré Jewelry");
+
+            // Tạo danh sách sản phẩm bằng HTML
+            StringBuilder itemsHtml = new StringBuilder();
+            for (OrderItem item : order.getItems()) {
+                itemsHtml.append(String.format(
+                        "<li>%s (x%d) - %s</li>",
+                        item.getProduct().getName(),
+                        item.getQuantity(),
+                        String.format(String.valueOf(item.getPriceAtPurchase()))
+                ));
+            }
+
+            // Giao diện Email báo hủy
+            String htmlContent = String.format("""
+                <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto;">
+                    <h2 style="color: #dc2626;">Đơn hàng của bạn đã bị hủy</h2>
+                    <p>Chào <b>%s</b>,</p>
+                    <p>Hệ thống Silveré xin thông báo đơn hàng <b>#%s</b> của bạn đã được hủy trên hệ thống.</p>
+                    <p><b>Lý do hủy:</b> Quá thời gian thanh toán quy định (15 phút) </p>
+                    
+                    <div style="background-color: #f9fafb; padding: 15px; border-radius: 8px; margin: 20px 0;">
+                        <h3 style="margin-top: 0; color: #1f2937;">Chi tiết đơn hàng đã hủy:</h3>
+                        <ul>
+                            %s
+                        </ul>
+                    </div>
+                    
+                    <p>Nếu bạn đã sử dụng Mã giảm giá hoặc Điểm tích lũy cho đơn hàng này, hệ thống đã tự động hoàn lại vào tài khoản của bạn.</p>
+                    <p>Nếu bạn vẫn muốn mua các sản phẩm này, vui lòng truy cập lại website để đặt đơn hàng mới nhé!</p>
+                    <p>Trân trọng,<br/><b>Đội ngũ Silveré Jewelry</b></p>
+                </div>
+                """,
+                    order.getRecipientName(),
+                    order.getId().toString().substring(0, 8).toUpperCase(),
+                    itemsHtml.toString()
+            );
+
+            helper.setText(htmlContent, true);
+            mailSender.send(message);
+
+        } catch (Exception e) {
+            System.err.println("❌ LỖI GỬI EMAIL HỦY ĐƠN: " + e.getMessage());
+            e.printStackTrace();
         }
     }
 }

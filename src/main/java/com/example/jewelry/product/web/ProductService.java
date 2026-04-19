@@ -13,11 +13,14 @@ public interface ProductService {
     List<ProductDto> getProductsByFengShui(String element);
     ProductDto createProduct(CreateProductRequest request);
     void deleteProduct(String id);
-    PageResponse<ProductDto> getProductsWithFilter(String search, Long categoryId, BigDecimal minPrice, BigDecimal maxPrice, int page, int size, String sortBy, String sortDir);
+    PageResponse<ProductDto> getProductsWithFilter(String search, Long categoryId, BigDecimal minPrice, BigDecimal maxPrice, String fengShuiElement, int page, int size, String sortBy, String sortDir);
     ProductDto updateProduct(String id, UpdateProductRequest request);
     void toggleProductStatus(String id, boolean isDeleted);
 
     ProductVariantDto addVariant(String productId, CreateVariantRequest request);
     ProductVariantDto updateVariant(String productId, UUID variantId, UpdateVariantRequest request);
     void deleteVariant(String productId, UUID variantId);
+    ProductDto getProductBySlug(String slug);
+
+    List<ProductDto> getBestSellers();
 }

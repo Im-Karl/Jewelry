@@ -1,5 +1,6 @@
 package com.example.jewelry.product.web;
 
+import com.example.jewelry.product.domain.ProductRepository;
 import com.example.jewelry.product.dto.*;
 import com.example.jewelry.shared.response.MessageResponse;
 import com.example.jewelry.shared.response.PageResponse;
@@ -35,6 +36,11 @@ public class ProductController {
         return ResponseEntity.ok(productService.getProductsByFengShui(element));
     }
 
+    @GetMapping("/slug/{slug}")
+    public ResponseEntity<ProductDto> getProductBySlug(@PathVariable String slug) {
+        return ResponseEntity.ok(productService.getProductBySlug(slug));
+    }
+
     @PostMapping(consumes = {"multipart/form-data"}) // Chỉ định nhận form-data
     public ResponseEntity<ProductDto> createProduct(@ModelAttribute CreateProductRequest request) {
         // TODO: Kiểm tra quyền Admin ở đây (sẽ làm ở bước Security)
@@ -55,13 +61,14 @@ public class ProductController {
             @RequestParam(required = false) Long categoryId,
             @RequestParam(required = false) BigDecimal minPrice,
             @RequestParam(required = false) BigDecimal maxPrice,
+            @RequestParam(required = false) String fengShuiElement,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(defaultValue = "createdAt") String sortBy,
             @RequestParam(defaultValue = "desc") String sortDir
     ) {
         return ResponseEntity.ok(productService.getProductsWithFilter(
-                search, categoryId, minPrice, maxPrice, page, size, sortBy, sortDir));
+                search, categoryId, minPrice, maxPrice, fengShuiElement, page, size, sortBy, sortDir));
     }
 
 
@@ -103,5 +110,10 @@ public class ProductController {
             @PathVariable UUID variantId) {
         productService.deleteVariant(productId, variantId);
         return ResponseEntity.ok("Đã xóa biến thể thành công");
+    }
+
+    @GetMapping("/best-sellers")
+    public ResponseEntity<List<ProductDto>> getBestSellers() {
+        return ResponseEntity.ok(productService.getBestSellers());
     }
 }

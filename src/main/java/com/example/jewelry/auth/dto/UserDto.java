@@ -7,6 +7,7 @@ import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.UUID;
 
 @Data
@@ -22,6 +23,13 @@ public class UserDto {
     private UserRole role;
     private BigDecimal totalSpent;
     private CustomerTier tier;
-
     private String avatarUrl;
+
+    private String phoneNumber;
+    private LocalDate birthDate;
+    private String gender;
+    private String zodiacSign;
+    private String fengShuiElement;
+
+    private int loyaltyPoints;
 }
